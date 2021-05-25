@@ -1,0 +1,215 @@
+--EDA on pgadmin for adventure works
+
+SELECT column-name
+From Table-1
+Where value IN (SELECT column-name
+FROM table-2
+Where condition)
+
+
+Select *
+FROM Temp_employees
+Where value IN(select Gender
+From Temp_employees
+Where sickhrs =1
+
+Select Gender, Sum(skichrs) AS 'Sickhrs'
+FROM(SELECT *
+FROM temp_employees
+Where Salaried=1) AS subq
+gROUP BY GENDER
+
+
+Select Gender, avg(Sickhrs), Count (Married)
+SELECT Married
+From tempemployees
+Where married = M
+Group by gender
+
+SELECT Gender, avg(sickhrs) AS 'avg Sickhrs', Count(Married) AS 'total Married'
+FROM(SELECT *
+FROM temp_employees
+Where married =M) as Married Employees
+Group by Gender
+
+
+SELECT subq.productid
+FROM(
+SELECT wor.productID, wor.orderqty
+FROM Production.workorder wor
+ORDER by wor.orderqty desc
+limit 100) AS subq
+group by subq.productid;
+
+
+SELECT *
+FROM sales.
+
+SELECT DISTINCT(top_100_prod_work_orders.ProductID)
+FROM
+     (SELECT wo.ProductID, wo.OrderQty
+      FROM Production.WorkOrder wo
+      ORDER BY wo.OrderQty DESC
+      LIMIT 100) AS top_100_prod_work_orders
+
+SELECT ROUND(AVG(subq.isfree)*100, 1) AS "isfreeprecentage"
+FROM(SELECT p.listprice
+	CASE
+		WHEN p.listprice=0 THEN 1
+		ELSE 0
+	END AS "isfree"
+	FROM production.product p) AS subq;
+
+
+
+--wrangled
+
+
+/*SELECT COUNT(DISTINCT(a.productid)) AS "Total Count"
+FROM sales.salesorderdetail AS a
+JOIN sales.salesorderheader AS b
+	on a.salesorderid = b.salesorderid
+JOIN sales.store AS c
+	on b.salespersonid = c.salespersonid
+WHERE c.name = 'Frugal Bike Shop';*/
+
+SELECT p.name, p.color,
+	COALESCE(p.color, p.name) AS "coalesced"
+FROM Production.Product p
+LIMIT 10;
+
+SELECT p.name, p.color
+FROM production.product p
+WHERE p.color is not NULL;
+
+SELECT DISTINCT p.color,
+CASE
+	when p.color = 'Red' 1
+	WHEN p.color = 'White' THEN 2
+	WHEN p.color = 'Blue' THEN 3
+	ELSE 0
+END AS "colorint"
+FROM production.product p
+
+
+SELECT p.name, SUM(od.orderqty) as "qtyordered", cast(sum(oh.totaldue) as decimal(10,2)) as "Total_Sales"
+FROM Sales.SalesOrderDetail od 
+LEFT JOIN Production.Product p on p.productid = od.productid
+Left Join Sales.SalesOrderHeader oh on od.salesorderid = oh.salesorderid
+Group By p.name
+ORDER BY "Total_Sales" DESC;
+
+
+SELECT subq.totalage AS "agebin", count(*) AS "numberofemployees" FROM(
+SELECT e.birthdate, e.jobtitle,
+	CASE
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate) BETWEEN 0 AND 25 THEN 25
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate)  BETWEEN 25.1 AND 35 THEN 35
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate)  BETWEEN 35.1 AND 45 THEN 45
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate)  BETWEEN 45.1 AND 55 THEN 55
+		ELSE 60
+	END AS "totalage"
+FROM HumanResources.Employee e) AS subq
+GROUP BY subq.totalage
+ORDER BY subq.totalage DESC;
+
+SELECT 
+	subq.prefix as "product_prefix", 
+	COUNT(subq.postfix) as "number_of_products"
+	FROM(
+		SELECT p.productnumber, SUBSTRING(p.productnumber, 0, 3) AS "prefix", SUBSTRING(p.productnumber, 4, LENGTH(p.productnumber)) AS "postfix"
+		FROM Production.Product p) AS subq
+	GROUP BY subq.prefix
+	ORDER BY COUNT(subq.postfix) DESC;
+	
+	
+select pc.name, count(distinct(p.name))
+from production.product p 
+join production.productsubcategory psc
+ON p.productsubcategoryid = psc.productsubcategoryid
+join production.productcategory pc
+on psc.productcategoryid = pc.productcategoryid
+GROUP BY pc.name;
+
+SELECT Distinct p.name, SUM(od.totaldue) as "totaldue"
+FROM Sales.SalesOrderDetail od 
+LEFT JOIN Production.Product p on p.productid = od.productid
+Group By p.name;
+
+--casting eda
+
+
+--Search for outliers, trends in Salesperson Database
+--Sales Data ytd and last year 
+select corr(sp.bonus, sp.saleslastyear) as "correlation coefficient", 
+cast(avg(sp.bonus) as money) as "avg bonus", 
+cast(avg(sp.salesytd) as money) as "avg sales YTD" , 
+cast(min(sp.bonus) as money) as "Min Bonus", 
+cast(max(sp.bonus) as money) "Max Bonus", 
+cast(min(sp.salesytd) as money) as "min YTD sales", 
+cast(max(sp.salesytd) as money) as "Max YTD Sales", 
+cast(avg(sp.saleslastyear) as money) as "Avg Sales Last Year",
+cast(min(sp.saleslastyear) as money) as "Min Sales Last Year",
+cast(max(sp.saleslastyear) as money) as "Max Sales Last Year",
+cast(avg(sp.salesquota) as money) as "Average Sales Quota",
+cast(min(sp.salesquota) as money) as "min sales quota",
+cast(max(sp.salesquota) as money) as "max sales quota"
+from sales.salesperson sp
+JOIN humanresources.employee e ON e.businessentityid = sp.businessentityid  
+WHERE e.jobtitle LIKE '%Sales R%';
+--Salesperson Sales Data with country regioncode
+SELECT concat(p.firstname, p.lastname) as "Full Name", sp.bonus, cast(sp.salesytd as money), cast(sp.salesquota as money), cast(sp.saleslastyear as money), e.jobtitle, st.countryregioncode, st.territoryid
+FROM person.person p  
+LEFT JOIN humanresources.employee e ON e.businessentityid = p.businessentityid  
+LEFT Join sales.salesperson sp on e.businessentityid = sp.businessentityid 
+left join sales.salesterritory st on st.territoryid = sp.territoryid
+WHERE e.jobtitle LIKE '%Sales R%' 
+Order by sp.saleslastyear DESC; 
+
+
+--query for data
+
+SELECT p.name, SUM(od.orderqty) as "qtyordered", cast(sum(oh.totaldue) as decimal(10,2)) as "Total_Sales"
+FROM Sales.SalesOrderDetail od 
+LEFT JOIN Production.Product p on p.productid = od.productid
+Left Join Sales.SalesOrderHeader oh on od.salesorderid = oh.salesorderid
+Group By p.name
+ORDER BY "Total_Sales" DESC;
+
+
+
+SELECT subq.totalage AS "agebin", count(*) AS "numberofemployees" FROM(
+SELECT e.birthdate, e.jobtitle,
+	CASE
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate) BETWEEN 0 AND 25 THEN 25
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate)  BETWEEN 25.1 AND 35 THEN 35
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate)  BETWEEN 35.1 AND 45 THEN 45
+		WHEN DATE_PART('year', CURRENT_DATE) - DATE_PART('year', e.birthdate)  BETWEEN 45.1 AND 55 THEN 55
+		ELSE 60
+	END AS "totalage"
+FROM HumanResources.Employee e) AS subq
+GROUP BY subq.totalage
+ORDER BY subq.totalage DESC;
+
+SELECT 
+	subq.prefix as "product_prefix", 
+	COUNT(subq.postfix) as "number_of_products"
+	FROM(
+		SELECT p.productnumber, SUBSTRING(p.productnumber, 0, 3) AS "prefix", SUBSTRING(p.productnumber, 4, LENGTH(p.productnumber)) AS "postfix"
+		FROM Production.Product p) AS subq
+	GROUP BY subq.prefix
+	ORDER BY COUNT(subq.postfix) DESC;
+	
+	
+select pc.name, count(distinct(p.name))
+from production.product p 
+join production.productsubcategory psc
+ON p.productsubcategoryid = psc.productsubcategoryid
+join production.productcategory pc
+on psc.productcategoryid = pc.productcategoryid
+GROUP BY pc.name;
+
+SELECT Distinct p.name, SUM(od.totaldue) as "totaldue"
+FROM Sales.SalesOrderDetail od 
+LEFT JOIN Production.Product p on p.productid = od.productid
+Group By p.name;
