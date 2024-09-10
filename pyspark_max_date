@@ -1,0 +1,31 @@
+from pyspark.sql import functions as F
+
+# Sample DataFrame creation
+data = [
+    ("Org1", "123", 100, "2023-09-01"),
+    ("Org1", "123", 200, "2023-09-10"),
+    ("Org2", "456", 150, "2023-08-20"),
+    ("Org2", "456", 180, "2023-09-15"),
+    ("Org3", "789", 250, "2023-09-05")
+]
+
+# Create DataFrame
+df = spark.createDataFrame(data, ["organization", "org_num", "value", "date_of_value_update"])
+
+# Convert string date to a date type
+df = df.withColumn("date_of_value_update", F.to_date("date_of_value_update", "yyyy-MM-dd"))
+
+# Select the most recent entry for each organization and org_num
+max_date_df = df.groupBy("organization", "org_num").agg(
+    F.max("date_of_value_update").alias("most_recent_date")
+)
+
+# Join back to get the corresponding value for the most recent date
+result_df = df.join(max_date_df, 
+                    (df.organization == max_date_df.organization) &
+                    (df.org_num == max_date_df.org_num) &
+                    (df.date_of_value_update == max_date_df.most_recent_date)
+                   ).select(df.organization, df.org_num, df.value, df.date_of_value_update)
+
+# Show the result
+result_df.show()
