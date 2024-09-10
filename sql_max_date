@@ -1,0 +1,16 @@
+WITH RankedValues AS (
+    SELECT 
+        organization, 
+        org_num, 
+        value, 
+        date_of_value_update,
+        ROW_NUMBER() OVER (PARTITION BY organization, org_num ORDER BY date_of_value_update DESC) as rank
+    FROM your_table
+)
+SELECT 
+    organization, 
+    org_num, 
+    value, 
+    date_of_value_update
+FROM RankedValues
+WHERE rank = 1;
